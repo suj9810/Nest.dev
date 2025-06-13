@@ -53,7 +53,7 @@ public class OAuth2LoginService {
         // 검증 후 null 값일때 반환 (신규 유저)
         if (user.getUserRole() == null || user.getPhoneNumber() == null || user.getName() == null) {
             // 임시 토큰 발급
-            String tempAccessToken = jwtUtil.createTempAccessToken(user.getEmail());
+            String tempAccessToken = jwtUtil.createTempAccessToken(user);
             return OAuth2LoginResponseDto.of(user, tempAccessToken, null, true);
         }
 

@@ -53,6 +53,9 @@ public class AuthService {
             case MENTEE -> User.createMentee(dto, encoded);
             case MENTOR -> User.createMentor(dto, encoded);
             case ADMIN -> User.createAdmin(dto, encoded);
+
+            // 다른 값이 들어오면 예외 발생
+            default -> throw new BaseException(ErrorCode.INVALID_ROLE_FOR_SIGNUP);
         };
 
         User savedUser = userRepository.save(user);

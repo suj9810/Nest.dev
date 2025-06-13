@@ -5,18 +5,21 @@ import caffeine.nest_dev.common.config.PasswordEncoder;
 import caffeine.nest_dev.common.enums.ErrorCode;
 import caffeine.nest_dev.common.exception.BaseException;
 import caffeine.nest_dev.domain.auth.dto.request.DeleteRequestDto;
+import caffeine.nest_dev.domain.auth.dto.response.LoginResponseDto;
 import caffeine.nest_dev.domain.auth.repository.TokenRepository;
 import caffeine.nest_dev.domain.user.dto.request.ExtraInfoRequestDto;
 import caffeine.nest_dev.domain.user.dto.request.UpdatePasswordRequestDto;
 import caffeine.nest_dev.domain.user.dto.request.UserRequestDto;
 import caffeine.nest_dev.domain.user.dto.response.UserResponseDto;
 import caffeine.nest_dev.domain.user.entity.User;
+import caffeine.nest_dev.domain.user.enums.SocialType;
 import caffeine.nest_dev.domain.user.enums.UserGrade;
 import caffeine.nest_dev.domain.user.enums.UserRole;
 import caffeine.nest_dev.domain.user.repository.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,9 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final TokenRepository tokenRepository;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
 
     @Transactional(readOnly = true)
     public UserResponseDto findUser(Long userId) {
@@ -66,6 +72,11 @@ public class UserService {
         // 유저 조회
         User user = findByIdAndIsDeletedFalseOrElseThrow(userId);
 
+        // 소셜 로그인 회원은 예외 발생
+        if (!SocialType.LOCAL.equals(user.getSocialType())) {
+            throw new BaseException(ErrorCode.NOT_LOCAL_USER);
+        }
+
         // 비밀 번호 검증
         if (!passwordEncoder.matches(dto.getRawPassword(), user.getPassword())) {
             throw new BaseException(ErrorCode.INVALID_PASSWORD);
@@ -84,7 +95,7 @@ public class UserService {
     }
 
     @Transactional
-    public void updateExtraInfo(Long userId, ExtraInfoRequestDto dto) {
+    public LoginResponseDto updateExtraInfo(Long userId, ExtraInfoRequestDto dto) {
 
         // 유저 조회
         User user = findByIdAndIsDeletedFalseOrElseThrow(userId);
@@ -97,12 +108,23 @@ public class UserService {
         if (dto.getUserRole().equals(UserRole.MENTEE)) {
             user.updateUserGrade(UserGrade.SEED);
             user.updateExtraInfo(dto);
+            user.updateTotalPrice(0);
         }
 
         // MENTOR 일때
         if (dto.getUserRole().equals(UserRole.MENTOR)) {
             user.updateExtraInfo(dto);
         }
+
+        // accessToken 발급
+        String accessToken = jwtUtil.createAccessToken(user);
+        // refreshToken 발급
+        String refreshToken = jwtUtil.createRefreshToken(user);
+
+        // redis 에 refreshToken 저장
+        tokenRepository.save(user.getId(), refreshToken, refreshTokenExpiration);
+
+        return LoginResponseDto.of(user, accessToken, refreshToken);
     }
 
     @Transactional
@@ -186,7 +208,4 @@ public class UserService {
             }
         }
     }
-
-    // 매달 1일 탈퇴 여부 확인하고 회원 완전 삭제
-//    @Scheduled(cron = "0 0 0 1 * * ")
 }

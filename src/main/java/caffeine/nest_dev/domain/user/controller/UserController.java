@@ -3,6 +3,7 @@ package caffeine.nest_dev.domain.user.controller;
 import caffeine.nest_dev.common.dto.CommonResponse;
 import caffeine.nest_dev.common.enums.SuccessCode;
 import caffeine.nest_dev.domain.auth.dto.request.DeleteRequestDto;
+import caffeine.nest_dev.domain.auth.dto.response.LoginResponseDto;
 import caffeine.nest_dev.domain.user.dto.request.ExtraInfoRequestDto;
 import caffeine.nest_dev.domain.user.dto.request.UpdatePasswordRequestDto;
 import caffeine.nest_dev.domain.user.dto.request.UserRequestDto;
@@ -69,15 +70,15 @@ public class UserController {
 
     // MENTEE or MENTOR 선택 / 전화번호 입력 (추가정보)
     @PatchMapping("/extraInfo")
-    public ResponseEntity<CommonResponse<Void>> extraInfo(
+    public ResponseEntity<CommonResponse<LoginResponseDto>> extraInfo(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody ExtraInfoRequestDto dto
     ) {
 
-        userService.updateExtraInfo(userDetails.getId(), dto);
+        LoginResponseDto responseDto = userService.updateExtraInfo(userDetails.getId(), dto);
 
         return ResponseEntity.status(HttpStatus.OK)
-                .body(CommonResponse.of(SuccessCode.SUCCESS_UPDATE_EXTRA_INFO));
+                .body(CommonResponse.of(SuccessCode.SUCCESS_UPDATE_EXTRA_INFO, responseDto));
     }
 
     // 회원 탈퇴

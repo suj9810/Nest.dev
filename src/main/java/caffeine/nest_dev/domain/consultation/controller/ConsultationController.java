@@ -2,8 +2,8 @@ package caffeine.nest_dev.domain.consultation.controller;
 
 import caffeine.nest_dev.common.dto.CommonResponse;
 import caffeine.nest_dev.common.enums.SuccessCode;
-import caffeine.nest_dev.domain.category.dto.response.CategoryResponseDto;
 import caffeine.nest_dev.domain.consultation.dto.request.ConsultationRequestDto;
+import caffeine.nest_dev.domain.consultation.dto.response.AvailableSlotDto;
 import caffeine.nest_dev.domain.consultation.dto.response.ConsultationResponseDto;
 import caffeine.nest_dev.domain.consultation.service.ConsultationService;
 import caffeine.nest_dev.domain.user.entity.UserDetailsImpl;
@@ -55,6 +55,17 @@ public class ConsultationController {
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(CommonResponse.of(SuccessCode.SUCCESS_CONSULTATION_READ, myConsultations));
+    }
+
+    /**
+     * MENTEE 가 보는 예약된 시간을 제외한 상담 가능한 시간 조회
+     * */
+    @GetMapping("/mentor/{mentorId}/availableConsultations")
+    public ResponseEntity<CommonResponse<List<AvailableSlotDto>>> getSlots(
+            @PathVariable Long mentorId // 멘토의 ID
+    ) {
+        List<AvailableSlotDto> responseDto = consultationService.getAvailableConsultationSlots(mentorId);
+        return ResponseEntity.ok(CommonResponse.of(SuccessCode.SUCCESS_SLOTS_READ, responseDto));
     }
 
     /**

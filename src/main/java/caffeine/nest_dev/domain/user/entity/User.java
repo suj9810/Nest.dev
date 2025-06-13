@@ -122,6 +122,7 @@ public class User extends BaseEntity {
                 .email(userInfo.getEmail())
                 .nickName(userInfo.getNickName())
                 .password(UUID.randomUUID().toString()) // 임의의 비밀번호 사용
+                .userRole(UserRole.GUEST)
                 .socialType(socialType)
                 .socialId(userInfo.getId())
                 .build();
