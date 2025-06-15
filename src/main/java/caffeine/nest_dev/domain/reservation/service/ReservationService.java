@@ -49,10 +49,10 @@ public class ReservationService {
 
         Reservation reservation = reservationRepository.save(requestDto.toEntity(mentor, mentee));
 
-//        chatRoomSchedulerService.registerChatRoomSchedule(
-//                reservation.getId(),
-//                reservation.getReservationStartAt()
-//        );
+        chatRoomSchedulerService.registerChatRoomSchedule(
+                reservation.getId(),
+                reservation.getReservationStartAt()
+        );
 
         return ReservationResponseDto.of(reservation);
 

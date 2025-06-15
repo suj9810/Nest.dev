@@ -7,7 +7,7 @@ import caffeine.nest_dev.domain.chatroom.dto.response.ChatRoomResponseDto;
 import caffeine.nest_dev.domain.chatroom.dto.response.MessageDto;
 import caffeine.nest_dev.domain.chatroom.entity.ChatRoom;
 import caffeine.nest_dev.domain.chatroom.repository.ChatRoomRepository;
-import caffeine.nest_dev.domain.chatroom.scheduler.service.ChatRoomCloseSchedulerService;
+import caffeine.nest_dev.domain.chatroom.scheduler.service.ChatRoomTerminationSchedulerService;
 import caffeine.nest_dev.domain.reservation.entity.Reservation;
 import caffeine.nest_dev.domain.reservation.repository.ReservationRepository;
 import caffeine.nest_dev.domain.user.entity.User;
@@ -30,7 +30,7 @@ public class ChatRoomService {
     private final ReservationRepository reservationRepository;
     private final UserService userService;
 
-    private final ChatRoomCloseSchedulerService schedulerService;
+    private final ChatRoomTerminationSchedulerService schedulerService;
 
     // 채팅방 생성
     @Transactional

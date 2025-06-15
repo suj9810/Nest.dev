@@ -1,117 +1,194 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8"/>
-  <title>WebSocket JWT 테스트</title>
-  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STOMP & SSE Tester</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
 
-    input, button {
-      padding: 6px;
-      margin: 4px;
-    }
+  <script type="text/javascript">
+    let stompClient;
+    let subscriptions = {};
+    let eventSource = null;
 
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    li {
-      padding: 4px;
-      border-bottom: 1px solid #ccc;
-    }
-  </style>
-</head>
-<body>
-
-<h2>💬 WebSocket JWT 클라이언트</h2>
-
-<div>
-  <label>🔑 소켓 토큰 (JWT):</label><br/>
-  <input type="text" id="socketToken" placeholder="JWT를 입력하세요" size="80"/><br/>
-
-  <label>💬 채팅방 ID:</label>
-  <input type="number" id="chatRoomId" placeholder="예: 1"/><br/>
-
-  <label>📨 받는 사람 ID (receiverId):</label>
-  <input type="number" id="receiverId" placeholder="예: 2"/><br/>
-
-  <label>✉️ 메시지:</label>
-  <input type="text" id="messageInput" placeholder="메시지를 입력하세요" size="50"/>
-  <button onclick="sendMessage()">전송</button>
-</div>
-
-<h3>📥 수신 메시지</h3>
-<ul id="messageList"></ul>
-
-<h3>❌ 에러 메시지</h3>
-<ul id="errorList"></ul>
-
-<script>
-  let stompClient = null;
-
-  function connect(token, callback) {
-    const socket = new SockJS(`http://localhost:8080/ws-nest?token=${token}`);
-    stompClient = Stomp.over(socket);
-
-    stompClient.connect({}, () => {
-      console.log("✅ WebSocket 연결 성공");
-
-      // 사용자 전용 메시지 구독
-      stompClient.subscribe("/user/queue/message", (msg) => {
-        const data = JSON.parse(msg.body);
-        const li = document.createElement("li");
-        li.textContent = `[${data.senderId} → ${data.receiverId}] ${data.content}`;
-        document.getElementById("messageList").appendChild(li);
-      });
-
-      // 사용자 전용 에러 메시지 구독
-      stompClient.subscribe("/user/queue/error", (msg) => {
-        const error = JSON.parse(msg.body);
-        const li = document.createElement("li");
-        li.textContent = `⚠️ ${error.status || ""} ${error.message}`;
-        document.getElementById("errorList").appendChild(li);
-      });
-
-      if (callback) {
-        callback();
+    function saveToken() {
+      const token = document.getElementById('accessTokenInput').value;
+      if (token) {
+        localStorage.setItem("accessToken", token);
+        document.getElementById('storedTokenText').textContent = token;
+        alert("✅ 토큰이 저장되었습니다.");
+      } else {
+        alert("❌ 토큰을 입력해주세요.");
       }
-    }, (error) => {
-      console.error("❌ 연결 실패:", error);
+    }
+
+    function connectWebSocket() {
+      const url = $('#websocketUrl').val();
+      stompClient = Stomp.client(url);
+      stompClient.connect({}, stompConnectHandler, stompErrorHandler);
+    }
+
+    function stompConnectHandler() {
+      console.log('✅ WebSocket connected!');
+    }
+
+    function stompErrorHandler(e) {
+      console.error('❌ WebSocket error:', e);
+    }
+
+    function subscribeToPath(path) {
+      const subscription = stompClient.subscribe(path, (data) => {
+        displayMessage(data.body);
+      });
+      subscriptions[path] = subscription;
+    }
+
+    function unsubscribeFromPath(path) {
+      if (subscriptions[path]) {
+        subscriptions[path].unsubscribe();
+        delete subscriptions[path];
+        console.log(`Unsubscribed from ${path}`);
+      }
+    }
+
+    function displayMessage(messageData) {
+      const messageBox = $('#messageBox');
+      messageBox.append(`<div class="alert alert-info">${messageData}</div>`);
+      messageBox.scrollTop(messageBox[0].scrollHeight);
+    }
+
+    function connectSSE() {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("⚠️ 저장된 AccessToken이 없습니다. 먼저 토큰을 저장하세요.");
+        return;
+      }
+
+      const url = "http://localhost:8080/sse/notifications/subscribe?accessToken=" + token;
+
+      eventSource = new EventSource(url);
+
+      eventSource.onopen = function () {
+        console.log('✅ SSE connected');
+      };
+
+      eventSource.onmessage = function (event) {
+        const data = event.data;
+        $('#sseBox').append(`<div class="alert alert-warning">${data}</div>`);
+        $('#sseBox').scrollTop($('#sseBox')[0].scrollHeight);
+      };
+
+      eventSource.onerror = function (error) {
+        console.error('❌ SSE error:', error);
+        eventSource.close();
+      };
+    }
+
+    $(function () {
+      $('#connectBtn').click(connectWebSocket);
+      $('#sseConnectBtn').click(connectSSE);
+
+      $('#addSubscriptionBtn').click(function () {
+        const count = $('#subscriptionList .subscription-form').length;
+        const form = `
+          <div class="mb-3 input-group subscription-form" id="subscription-${count}" style="width: 500px;">
+            <input type="text" class="form-control" placeholder="SUB PATH" id="path-${count}" />
+            <button class="btn btn-primary subscribeBtn">SUB</button>
+            <button class="btn btn-danger unsubscribeBtn" style="display: none;">UNSUB</button>
+          </div>`;
+        $('#subscriptionList').append(form);
+      });
+
+      $(document).on('click', '.subscribeBtn', function () {
+        const input = $(this).siblings('input');
+        const path = input.val();
+        subscribeToPath(path);
+        input.prop('disabled', true);
+        $(this).prop('disabled', true).hide();
+        $(this).siblings('.unsubscribeBtn').show();
+      });
+
+      $(document).on('click', '.unsubscribeBtn', function () {
+        const input = $(this).siblings('input');
+        const path = input.val();
+        unsubscribeFromPath(path);
+        input.prop('disabled', false);
+        $(this).siblings('.subscribeBtn').prop('disabled', false).show();
+        $(this).hide();
+      });
+
+      $('#sendBtn').click(function () {
+        const destination = $('#destinationPath').val();
+        const messageJson = $('#message').val();
+        try {
+          const message = JSON.parse(messageJson);
+          stompClient.send(destination, {}, JSON.stringify(message));
+        } catch (e) {
+          alert('유효한 JSON을 입력하세요.');
+        }
+      });
+
+      // 초기 토큰 표시
+      const saved = localStorage.getItem("accessToken");
+      if (saved) {
+        $('#storedTokenText').text(saved);
+      }
     });
-  }
+  </script>
+</head>
 
-  function sendMessage() {
-    const token = document.getElementById("socketToken").value.trim();
-    const chatRoomId = document.getElementById("chatRoomId").value.trim();
-    const receiverId = document.getElementById("receiverId").value.trim();
-    const content = document.getElementById("messageInput").value.trim();
+<body>
+<div class="container">
+  <h2>🔐 AccessToken 설정</h2>
+  <div class="input-group mb-3" style="width: 500px;">
+    <input type="text" id="accessTokenInput" class="form-control" placeholder="여기에 AccessToken 입력">
+    <button class="btn btn-outline-success" onclick="saveToken()">저장</button>
+  </div>
+  <div class="mb-3">
+    <small>현재 저장된 토큰: <code id="storedTokenText">없음</code></small>
+  </div>
 
-    if (!token || !chatRoomId || !receiverId || !content) {
-      alert("모든 필드를 입력해주세요.");
-      return;
-    }
+  <h1>WebSocket CONNECT</h1>
+  <div class="mb-3 input-group" style="width: 500px;">
+    <input type="text" id="websocketUrl" class="form-control" placeholder="ws://localhost:8080/ws-stomp"/>
+    <button id="connectBtn" class="btn btn-primary">CONNECT</button>
+  </div>
 
-    if (!stompClient || !stompClient.connected) {
-      connect(token, () => sendMessage());
-      return;
-    }
+  <h2>SUBSCRIBE</h2>
+  <div id="subscriptionList"></div>
+  <div class="input-group mb-3">
+    <button id="addSubscriptionBtn" class="btn btn-secondary">ADD</button>
+  </div>
 
-    const payload = {
-      roomId: Number(chatRoomId),
-      receiverId: Number(receiverId),
-      content: content
-    };
+  <h2>SEND MESSAGE</h2>
+  <div class="mb-3">
+    <label for="destinationPath" class="form-label">DESTINATION PATH:</label>
+    <input type="text" id="destinationPath" class="form-control" placeholder="/pub/send/message"/>
+  </div>
+  <div class="mb-3">
+    <label for="message" class="form-label">MESSAGE (JSON):</label>
+    <textarea id="message" class="form-control"
+              placeholder='{"targetUsername": "user", "message": "Hello", "sender": "admin"}'></textarea>
+  </div>
+  <button id="sendBtn" class="btn btn-success">SEND</button>
 
-    stompClient.send(`/app/chat_room/${chatRoomId}/message`, {}, JSON.stringify(payload));
-    document.getElementById("messageInput").value = "";
-  }
-</script>
+  <h2 class="mt-4">MESSAGES</h2>
+  <div id="messageBox" class="border p-3" style="height: 200px; overflow-y: auto;"></div>
 
+  <h2 class="mt-4">SSE CONNECT</h2>
+  <button id="sseConnectBtn" class="btn btn-info mb-3">CONNECT SSE</button>
+
+  <h2>SSE NOTIFICATIONS</h2>
+  <div id="sseBox" class="border p-3" style="height: 150px; overflow-y: auto;"></div>
+</div>
 </body>
 </html>

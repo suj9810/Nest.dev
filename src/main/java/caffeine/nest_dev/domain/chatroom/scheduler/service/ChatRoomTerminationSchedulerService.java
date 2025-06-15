@@ -15,8 +15,6 @@ import java.util.Date;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.CloseStatus;
@@ -25,7 +23,7 @@ import org.springframework.web.socket.WebSocketSession;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ChatRoomCloseSchedulerService {
+public class ChatRoomTerminationSchedulerService {
 
     // 스케줄링을 위한 빈
     private final TaskScheduler taskScheduler;
@@ -36,7 +34,6 @@ public class ChatRoomCloseSchedulerService {
     private final WebSocketSessionRegistry sessionRegistry;
 
     // 서버 재시작 시 초기화 작업
-    @EventListener(ApplicationReadyEvent.class)
     public void init() {
         List<ChatRoomSchedule> scheduleList = chatRoomScheduleRepository.findAllByChatRoomTypeAndScheduleStatus(
                 ChatRoomType.CLOSE, ScheduleStatus.PENDING);
